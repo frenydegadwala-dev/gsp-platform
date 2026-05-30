@@ -1,0 +1,54 @@
+version: '3.9'
+
+services:
+
+  mongo:
+    image: mongo:7
+    container_name: gsp-mongo
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+    ports:
+      - '27017:27017'
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: gsp-backend
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    environment:
+      PORT: 3000
+      MONGO_URI: mongodb://mongo:27017/gsp
+      JWT_SECRET: gsp_dev_secret_2024
+      JWT_EXPIRES_IN: 8h
+    ports:
+      - '3000:3000'
+
+  seed:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: gsp-seed
+    depends_on:
+      - mongo
+    environment:
+      MONGO_URI: mongodb://mongo:27017/gsp
+    command: node seeds/users.js
+    restart: 'no'
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: gsp-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - '4200:80'
+
+volumes:
+  mongo-data:

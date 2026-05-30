@@ -1,0 +1,36 @@
+<div class="login-page">
+  <div class="login-card">
+    <div class="logo">
+      <h1>GSP Platform</h1>
+      <p>Global Students Pathway</p>
+    </div>
+
+    <form (ngSubmit)="onSubmit()" #f="ngForm">
+      <div class="field">
+        <label>Email</label>
+        <input type="email" [(ngModel)]="email" name="email" required autocomplete="email" />
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" [(ngModel)]="password" name="password" required autocomplete="current-password" />
+      </div>
+
+      @if (error) {
+        <div class="error-msg">{{ error }}</div>
+      }
+
+      <button type="submit" [disabled]="loading" class="btn-primary">
+        {{ loading ? 'Signing in…' : 'Sign In' }}
+      </button>
+    </form>
+
+    <div class="demo-section">
+      <p class="demo-label">Demo accounts (password: password123)</p>
+      <div class="demo-buttons">
+        @for (u of demoUsers; track u.email) {
+          <button type="button" class="btn-demo" (click)="fillDemo(u.email)">{{ u.label }}</button>
+        }
+      </div>
+    </div>
+  </div>
+</div>

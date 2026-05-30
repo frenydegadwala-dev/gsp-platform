@@ -1,0 +1,306 @@
+<div class="page">
+  <header class="topbar">
+    <button class="btn-link" (click)="goBack()">← Applications</button>
+    <div class="topbar-right">
+      <span class="role-badge">{{ auth.currentUser?.role }}</span>
+      <span class="user-name">{{ auth.currentUser?.name }}</span>
+    </div>
+  </header>
+
+  @if (loading) {
+    <div class="loading">Loading…</div>
+  } @else if (error) {
+    <div class="error-msg content">{{ error }}</div>
+  } @else {
+    <main class="content detail-layout">
+
+      <!-- Left column -->
+      <div class="detail-main">
+
+        <!-- Header card -->
+        <div class="card">
+          <div class="detail-header">
+            <div>
+              <h2>{{ app.studentInfo.firstName }} {{ app.studentInfo.lastName }}</h2>
+              <p class="sub">{{ app.course }} · {{ app.university }}</p>
+              <p class="sub">{{ app.studentInfo.nationality }} · {{ app.intakeMonth }} {{ app.intakeYear }}</p>
+            </div>
+            <span [class]="'badge large ' + stageBadgeClass(app.currentStage)">
+              {{ stageLabel(app.currentStage) }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Stage timeline -->
+        <div class="card">
+          <h3>Stage History</h3>
+          <div class="timeline">
+            @for (h of app.stageHistory; track $index) {
+              <div class="timeline-item">
+                <div class="timeline-dot"></div>
+                <div>
+                  <strong>{{ stageLabel(h.stage) }}</strong>
+                  <span class="timeline-meta">
+                    by {{ h.movedBy?.name ?? 'System' }} · {{ h.createdAt | date:'dd MMM yyyy, HH:mm' }}
+                  </span>
+                  @if (h.note) { <p class="timeline-note">{{ h.note }}</p> }
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Documents -->
+        <div class="card">
+          <h3>Documents</h3>
+          @if (app.documents.length === 0) {
+            <p class="empty-inline">No documents uploaded.</p>
+          } @else {
+            <ul class="doc-list">
+              @for (d of app.documents; track d._id) {
+                <li>
+                  <span class="doc-type">{{ d.type }}</span>
+                  @if (d.url) {
+                    <a class="doc-name" [href]="fileBaseUrl + d.url" target="_blank">{{ d.filename }}</a>
+                  } @else {
+                    <span class="doc-name">{{ d.filename }}</span>
+                  }
+                </li>
+              }
+            </ul>
+          }
+
+          @if (app.availableActions | actionAvailable:'add_attachment') {
+            <div class="inline-form">
+              <select [(ngModel)]="docType">
+                @for (t of docTypes; track t) { <option [value]="t">{{ t }}</option> }
+              </select>
+              <input type="file" #fileInput (change)="onFileSelected($event)" />
+              <button class="btn-secondary" (click)="addDoc()" [disabled]="addingDoc">
+                {{ addingDoc ? 'Uploading…' : 'Attach' }}
+              </button>
+            </div>
+            @if (docError) { <div class="error-msg">{{ docError }}</div> }
+          }
+        </div>
+
+        <!-- Notes -->
+        <div class="card">
+          <h3>Notes</h3>
+          @if (app.notes.length === 0) {
+            <p class="empty-inline">No notes yet.</p>
+          } @else {
+            @for (n of app.notes; track n._id) {
+              <div class="note-item" [class.note-internal]="n.isInternal">
+                <p>{{ n.content }}</p>
+                <span class="note-meta">{{ n.createdBy?.name }} · {{ n.createdAt | date:'dd MMM HH:mm' }} {{ n.isInternal ? '· Internal' : '' }}</span>
+              </div>
+            }
+          }
+
+          @if (app.availableActions | actionAvailable:'add_note') {
+            <div class="inline-form stacked">
+              <textarea [(ngModel)]="noteContent" rows="2" placeholder="Write a note…"></textarea>
+              @if (auth.currentUser?.role !== 'agent') {
+                <label class="checkbox-label">
+                  <input type="checkbox" [(ngModel)]="noteInternal" /> Internal only
+                </label>
+              }
+              <button class="btn-secondary" (click)="addNote()" [disabled]="addingNote">
+                {{ addingNote ? 'Adding…' : 'Add Note' }}
+              </button>
+            </div>
+          }
+        </div>
+
+        <!-- Tasks -->
+        <div class="card">
+          <h3>Tasks</h3>
+          @if (!app.tasks?.length) {
+            <p class="empty-inline">No tasks yet.</p>
+          } @else {
+            @for (t of app.tasks; track t._id) {
+              <div class="task-item" [class.task-done]="t.completed">
+                <div class="task-main">
+                  <span class="task-title">{{ t.title }}</span>
+                  @if (t.completed) { <span class="task-badge">Done</span> }
+                </div>
+                <span class="task-meta">
+                  by {{ t.createdBy?.name }}
+                  @if (t.dueDate) { · Due {{ t.dueDate | date:'dd MMM yyyy' }} }
+                  · {{ t.createdAt | date:'dd MMM HH:mm' }}
+                </span>
+              </div>
+            }
+          }
+        </div>
+
+      </div>
+
+      <!-- Right column -->
+      <div class="detail-side">
+
+        <!-- Transition panel -->
+        @if (app.availableTransitions?.length > 0) {
+          <div class="card">
+            <h3>Advance Stage</h3>
+            <div class="field">
+              <label>Move to</label>
+              <select [(ngModel)]="selectedStage">
+                <option value="">— select —</option>
+                @for (s of app.availableTransitions; track s) {
+                  <option [value]="s">{{ stageLabel(s) }}</option>
+                }
+              </select>
+            </div>
+            <div class="field">
+              <label>Note (optional)</label>
+              <input [(ngModel)]="transitionNote" placeholder="Reason for transition…" />
+            </div>
+            @if (transitionError) { <div class="error-msg">{{ transitionError }}</div> }
+            @if (transitionSuccess) { <div class="success-msg">{{ transitionSuccess }}</div> }
+            <button class="btn-primary full-width" (click)="doTransition()" [disabled]="!selectedStage || transitioning">
+              {{ transitioning ? 'Moving…' : 'Confirm Transition' }}
+            </button>
+          </div>
+        } @else {
+          <div class="card">
+            <h3>Stage</h3>
+            <p class="empty-inline">
+              @if (auth.currentUser?.role === 'agent') {
+                Agents cannot trigger transitions.
+              } @else {
+                No transitions available from this stage.
+              }
+            </p>
+          </div>
+        }
+
+        <!-- Admission officer review note -->
+        @if (isAdmissionOfficer() && app.currentStage === 'app_review') {
+          <div class="card">
+            <h3>Review Note <span class="required">* required before Decision</span></h3>
+            <textarea [(ngModel)]="reviewNoteText" rows="4" placeholder="Record your review findings (min 10 characters)…"></textarea>
+            <button class="btn-secondary full-width" (click)="saveReviewNote()" [disabled]="savingReviewNote">
+              {{ savingReviewNote ? 'Saving…' : 'Save Review Note' }}
+            </button>
+            @if (app.reviewNote) {
+              <p class="saved-note">Saved: {{ app.reviewNote }}</p>
+            }
+          </div>
+        }
+
+        <!-- Contextual actions -->
+        @if (app.availableActions?.length > 0) {
+          <div class="card">
+            <h3>Actions</h3>
+
+            <div class="actions-list">
+              @for (action of app.availableActions; track action.key) {
+                @if (action.key !== 'add_note' && action.key !== 'add_attachment') {
+                  <button
+                    class="btn-action"
+                    [class.btn-destructive]="action.isDestructive"
+                    [class.btn-action-active]="activeAction === action.key"
+                    (click)="openAction(action.key)">
+                    {{ action.label }}
+                  </button>
+                }
+              }
+            </div>
+
+            @if (actionSuccess) { <div class="success-msg">{{ actionSuccess }}</div> }
+            @if (actionError)   { <div class="error-msg">{{ actionError }}</div> }
+
+            <!-- Add Task form -->
+            @if (activeAction === 'add_task') {
+              <div class="action-form">
+                <input [(ngModel)]="taskTitle" placeholder="Task title…" />
+                <input type="date" [(ngModel)]="taskDueDate" />
+                <button class="btn-primary" (click)="submitActiveAction()" [disabled]="actionLoading">
+                  {{ actionLoading ? 'Adding…' : 'Add Task' }}
+                </button>
+              </div>
+            }
+
+            <!-- Defer form -->
+            @if (activeAction === 'defer') {
+              <div class="action-form">
+                <textarea [(ngModel)]="actionNote" rows="2" placeholder="Reason for deferral (optional)…"></textarea>
+                <button class="btn-secondary" (click)="submitActiveAction()" [disabled]="actionLoading">
+                  {{ actionLoading ? 'Deferring…' : 'Confirm Defer' }}
+                </button>
+              </div>
+            }
+
+            <!-- Change Course form -->
+            @if (activeAction === 'change_course') {
+              <div class="action-form">
+                <input [(ngModel)]="newCourse" placeholder="New course…" />
+                <input [(ngModel)]="newUniversity" placeholder="New university…" />
+                <button class="btn-secondary" (click)="submitActiveAction()" [disabled]="actionLoading">
+                  {{ actionLoading ? 'Updating…' : 'Update Course' }}
+                </button>
+              </div>
+            }
+
+            <!-- Destructive confirm forms (Withdraw / Cancel / Refund / Drop Out) -->
+            @if (activeAction === 'withdraw' || activeAction === 'cancel' || activeAction === 'refund' || activeAction === 'drop_out') {
+              <div class="action-form action-form-danger">
+                <p class="action-warn">This action cannot be undone. Add an optional reason below.</p>
+                <textarea [(ngModel)]="actionNote" rows="2" placeholder="Reason (optional)…"></textarea>
+                <button class="btn-danger" (click)="submitActiveAction()" [disabled]="actionLoading">
+                  {{ actionLoading ? 'Processing…' : actionButtonLabel() }}
+                </button>
+              </div>
+            }
+          </div>
+        }
+
+        <!-- AI Review panel -->
+        @if (showAiPanel()) {
+          <div class="card ai-card">
+            <div class="ai-header">
+              <h3>AI Assessment</h3>
+              <button class="btn-secondary small" (click)="runAiReview()" [disabled]="aiLoading">
+                {{ aiLoading ? 'Analysing…' : 'Run Review' }}
+              </button>
+            </div>
+
+            @if (aiError) { <div class="error-msg">{{ aiError }}</div> }
+
+            @if (aiResult) {
+              <div class="ai-result">
+                <div class="ai-rec" [class.rec-proceed]="aiResult.recommendation === 'proceed'" [class.rec-review]="aiResult.recommendation !== 'proceed'">
+                  {{ aiResult.recommendation === 'proceed' ? '✓ Proceed' : '⚠ Review Required' }}
+                  <span class="confidence">{{ (aiResult.confidence * 100).toFixed(0) }}% confidence</span>
+                </div>
+
+                @if (aiResult.missingDocuments?.length) {
+                  <div class="ai-section">
+                    <strong>Missing documents</strong>
+                    <ul>
+                      @for (d of aiResult.missingDocuments; track d) { <li>{{ d }}</li> }
+                    </ul>
+                  </div>
+                }
+
+                @if (aiResult.risks?.length) {
+                  <div class="ai-section">
+                    <strong>Risks flagged</strong>
+                    <ul>
+                      @for (r of aiResult.risks; track r) { <li>{{ r }}</li> }
+                    </ul>
+                  </div>
+                }
+
+                <p class="ai-advisory">AI is advisory only. The officer makes the final decision.</p>
+              </div>
+            }
+          </div>
+        }
+
+      </div>
+    </main>
+  }
+</div>

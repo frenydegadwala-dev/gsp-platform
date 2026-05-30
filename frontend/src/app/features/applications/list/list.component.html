@@ -1,0 +1,102 @@
+<div class="page">
+  <header class="topbar">
+    <span class="topbar-title">GSP Platform</span>
+    <div class="topbar-right">
+      <span class="role-badge">{{ auth.currentUser?.role | titlecase }}</span>
+      <span class="user-name">{{ auth.currentUser?.name }}</span>
+      <button class="btn-link" (click)="logout()">Sign out</button>
+    </div>
+  </header>
+
+  <main class="content">
+    <div class="page-header">
+      <h2>Applications</h2>
+      @if (canCreate()) {
+        <button class="btn-primary" (click)="showCreate = !showCreate">
+          {{ showCreate ? 'Cancel' : '+ New Application' }}
+        </button>
+      }
+    </div>
+
+    @if (showCreate) {
+      <div class="card create-form">
+        <h3>New Application</h3>
+        <div class="form-grid">
+          <div class="field">
+            <label>First Name</label>
+            <input [(ngModel)]="newApp.studentInfo.firstName" placeholder="First name" />
+          </div>
+          <div class="field">
+            <label>Last Name</label>
+            <input [(ngModel)]="newApp.studentInfo.lastName" placeholder="Last name" />
+          </div>
+          <div class="field">
+            <label>Email</label>
+            <input [(ngModel)]="newApp.studentInfo.email" type="email" placeholder="student@email.com" />
+          </div>
+          <div class="field">
+            <label>Nationality</label>
+            <input [(ngModel)]="newApp.studentInfo.nationality" placeholder="e.g. Nigerian" />
+          </div>
+          <div class="field">
+            <label>Course</label>
+            <input [(ngModel)]="newApp.course" placeholder="e.g. BSc Computer Science" />
+          </div>
+          <div class="field">
+            <label>University</label>
+            <input [(ngModel)]="newApp.university" placeholder="e.g. University of Manchester" />
+          </div>
+          <div class="field">
+            <label>Intake Month</label>
+            <select [(ngModel)]="newApp.intakeMonth">
+              @for (m of months; track m) { <option>{{ m }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label>Intake Year</label>
+            <input [(ngModel)]="newApp.intakeYear" type="number" />
+          </div>
+        </div>
+        @if (createError) { <div class="error-msg">{{ createError }}</div> }
+        <button class="btn-primary" (click)="submitCreate()" [disabled]="creating">
+          {{ creating ? 'Creating…' : 'Create Application' }}
+        </button>
+      </div>
+    }
+
+    @if (loading) {
+      <div class="loading">Loading…</div>
+    } @else if (error) {
+      <div class="error-msg">{{ error }}</div>
+    } @else if (applications.length === 0) {
+      <div class="empty">No applications yet.</div>
+    } @else {
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Student</th>
+              <th>Course</th>
+              <th>University</th>
+              <th>Stage</th>
+              <th>Updated</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (app of applications; track app._id) {
+              <tr (click)="open(app._id)" class="clickable-row">
+                <td>{{ app.studentInfo.firstName }} {{ app.studentInfo.lastName }}</td>
+                <td>{{ app.course }}</td>
+                <td>{{ app.university }}</td>
+                <td><span [class]="'badge ' + stageBadgeClass(app.currentStage)">{{ stageLabel(app.currentStage) }}</span></td>
+                <td>{{ app.updatedAt | date:'dd MMM yyyy' }}</td>
+                <td><button class="btn-link">View →</button></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </main>
+</div>
